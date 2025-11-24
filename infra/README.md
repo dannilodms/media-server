@@ -24,17 +24,18 @@ Caso deseje outros nomes, ajuste o arquivo `infra/.env` antes de subir a stack.
 
 ## Volumes
 
-Todos os serviços compartilham o volume raiz `../media`, garantindo que downloads, originais e transcodificados fiquem acessíveis para qualquer container.
+Todos os serviços compartilham o volume raiz `../media`, garantindo que downloads e a pasta final consolidada fiquem acessíveis para qualquer container.
 
 ```
 media/
 ├── torrents/
 │   ├── watch/
 │   └── completed/
-├── originals/
-└── transcoded/
-    ├── 1080p/
-    └── 720p/
+└── final_media/
+	└── Série/Temporada/Episódio/arquivo/
+		├── arquivo.mkv
+		├── arquivo_1080p.mp4
+		└── arquivo_720p.mp4
 ```
 
 Essa árvore é criada automaticamente no host pelo script `scripts/setup.sh`, evitando que diretórios vazios sejam versionados.
@@ -65,4 +66,4 @@ Também é necessário apontar os registros DNS `A`/`AAAA` dos subdomínios para
 
 ## Configuração dos serviços
 
-O passo a passo completo para configurar o qBittorrent (watch folder, caminhos de download e porta 6881) e o Jellyfin (bibliotecas de `originals` e `transcoded`) está descrito no README principal na raiz do repositório. Siga aquelas instruções logo após subir os containers para garantir que o pipeline funcione do download à publicação.
+O passo a passo completo para configurar o qBittorrent (watch folder, caminhos de download e porta 6881) e o Jellyfin (bibliotecas apontando para `final_media`) está descrito no README principal na raiz do repositório. Siga aquelas instruções logo após subir os containers para garantir que o pipeline funcione do download à publicação.

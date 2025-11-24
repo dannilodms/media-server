@@ -14,50 +14,74 @@ require_binary() {
 }
 
 WATCH_DIR=${WATCH_DIR:-/media/torrents/completed}
-ORIGINALS_DIR=${ORIGINALS_DIR:-/media/originals}
-TRANSCODE_DIR=${TRANSCODE_DIR:-/media/transcoded}
+FINAL_MEDIA_ROOT=${FINAL_MEDIA_ROOT:-/media/final_media}
 SCRIPT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TRANSCODE_SCRIPT="${TRANSCODE_SCRIPT:-${SCRIPT_ROOT}/transcode.sh}"
 
 require_binary inotifywait
-mkdir -p "$WATCH_DIR" "$ORIGINALS_DIR" "$TRANSCODE_DIR/1080p" "$TRANSCODE_DIR/720p"
+mkdir -p "$WATCH_DIR" "$FINAL_MEDIA_ROOT"
 
 if [ ! -f "$TRANSCODE_SCRIPT" ]; then
   log "Script de transcodificação não encontrado em $TRANSCODE_SCRIPT"
   exit 1
 fi
 
+derive_relative_dir() {
+  local path="$1"
+  if [[ "$path" == "$WATCH_DIR"* ]]; then
+    local rel="${path#$WATCH_DIR/}"
+    local dir_part="$(dirname "$rel")"
+    if [ "$dir_part" = "." ]; then
+      echo ""
+    else
+      echo "$dir_part"
+    fi
+  else
+    echo ""
+  fi
+}
+
+process_file() {
+  local source="$1"
+  if [ ! -f "$source" ]; then
+    log "Arquivo não encontrado durante processamento: $source"
+    return
+  fi
+
+  local filename="$(basename "$source")"
+  local base_name="${filename%.*}"
+  local rel_dir="$(derive_relative_dir "$source")"
+
+  local destination_dir="$FINAL_MEDIA_ROOT"
+  if [ -n "$rel_dir" ]; then
+    destination_dir="$destination_dir/$rel_dir"
+  fi
+  destination_dir="$destination_dir/$base_name"
+
+  mkdir -p "$destination_dir"
+  local destination_path="$destination_dir/$filename"
+
+  log "Movendo $filename para $destination_dir"
+  mv -f "$source" "$destination_path"
+
+  log "Iniciando transcodificação de $filename"
+  if /bin/bash "$TRANSCODE_SCRIPT" "$destination_path"; then
+    log "Transcodificação concluída para $filename"
+  else
+    log "Falha ao transcodificar $filename"
+  fi
+}
+
 log "Monitorando novos arquivos em $WATCH_DIR"
 inotifywait -m -e close_write -e moved_to --format '%w%f' "$WATCH_DIR" | while read -r completed_path; do
   if [ -f "$completed_path" ]; then
-    filename="$(basename "$completed_path")"
-    destination="$ORIGINALS_DIR/$filename"
-
-    log "Movendo $filename para originais"
-    mv -f "$completed_path" "$destination"
-
-    log "Iniciando transcodificação de $filename"
-    if /bin/bash "$TRANSCODE_SCRIPT" "$destination"; then
-      log "Transcodificação concluída para $filename"
-    else
-      log "Falha ao transcodificar $filename"
-    fi
+    process_file "$completed_path"
   elif [ -d "$completed_path" ]; then
-    folder_name="$(basename "$completed_path")"
-    destination_dir="$ORIGINALS_DIR/$folder_name"
-
-    log "Movendo pasta $folder_name para originais"
-    mv -f "$completed_path" "$destination_dir"
-
-    find "$destination_dir" -type f -print0 | while IFS= read -r -d '' nested_file; do
-      nested_name="$(basename "$nested_file")"
-      log "Iniciando transcodificação de $nested_name"
-      if /bin/bash "$TRANSCODE_SCRIPT" "$nested_file"; then
-        log "Transcodificação concluída para $nested_name"
-      else
-        log "Falha ao transcodificar $nested_name"
-      fi
+    log "Processando pasta $(basename "$completed_path")"
+    find "$completed_path" -type f -print0 | while IFS= read -r -d '' nested_file; do
+      process_file "$nested_file"
     done
+    rm -rf "$completed_path"
   else
     log "Entrada ignorada: $completed_path"
   fi

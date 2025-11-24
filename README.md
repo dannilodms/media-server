@@ -14,7 +14,7 @@ Infraestrutura completa para automatizar downloads, transcodificação e disponi
 infra/                  # Arquivos de orquestração
 scripts/                # Automação de setup, watch e transcodificação
 config/                 # Configurações persistentes (criado pelo setup)
-media/                  # Raiz com torrents/originais/transcodificados (criado pelo setup)
+media/                  # Raiz com torrents e final_media (criado pelo setup)
 ```
 
 As pastas `config/` e `media/` não ficam versionadas: o script `setup.sh` cria toda a hierarquia diretamente no servidor antes de subir os containers.
@@ -51,17 +51,15 @@ O script `setup.sh` cria a estrutura completa, aplica permissões básicas (775)
 ## Fluxo automatizado
 
 1. Copie arquivos `.torrent` para `media/torrents/watch`. O qBittorrent detecta automaticamente e inicia o download em `media/torrents/completed`.
-2. O container `ffmpeg-watch` monitora `completed/` com `inotifywait`, move qualquer arquivo ou pasta finalizada para `media/originals` e chama `scripts/transcode.sh` em cada vídeo encontrado.
-3. `transcode.sh` gera duas versões (`1080p` e `720p`, H.264 + AAC) dentro de `media/transcoded/` garantindo idempotência (não sobrescreve saídas existentes).
-4. Jellyfin lê continuamente `media/` e disponibiliza as novas versões aos clientes.
+2. O container `ffmpeg-watch` monitora `completed/` com `inotifywait`, replica a árvore original (por exemplo `Série/Temporada 1/Episódio 1/`) dentro de `media/final_media` e cria um subdiretório com o nome do arquivo (`arquivo/`).
+3. `transcode.sh` mantém o arquivo original nesse diretório e gera as versões `*_1080p.mp4` e `*_720p.mp4` lado a lado, evitando reprocessamento quando as saídas já existem.
+4. Jellyfin lê continuamente `media/final_media` e disponibiliza todas as versões aos clientes.
 
-## Serviços principais
-
-- **Traefik**: único serviço exposto na borda. Publica `80/443`, executa HTTP-01, renova certificados e encaminha as rotas.
+> Não habilite scripts externos de pós-download no qBittorrent: o container `ffmpeg-watch` já organiza tudo dentro de `media/final_media` assim que o download termina.
 - **Jellyfin**: sem limites de recursos e montando `media/` inteiro, agora atrás do Traefik.
 - **qBittorrent (linuxserver/qbittorrent:5.1.4)**: utiliza PUID/PGID 1000 por padrão, pasta watch dedicada e limites de 1 CPUs / 1 GB. A WebUI passa pelo proxy enquanto as portas 6881 TCP/UDP continuam abertas para o protocolo BitTorrent.
 - **Filebrowser**: interface web rápida com acesso somente leitura ao usuário padrão (ajuste em `config/filebrowser`). Limites de 0.5 CPU / 512 MB e publicação exclusiva via Traefik.
-- **ffmpeg-watch**: baseado em `jrottenberg/ffmpeg:latest`, executa `scripts/watch.sh` para orquestrar movimento e transcodificação.
+- **ffmpeg-watch**: baseado em `jrottenberg/ffmpeg:latest`, executa `scripts/watch.sh` para replicar a árvore de `torrents/completed` dentro de `media/final_media` e disparar a transcodificação de cada arquivo.
 
 Mais detalhes estão em `infra/README.md`.
 
@@ -79,16 +77,12 @@ Mais detalhes estão em `infra/README.md`.
 6. Na aba **BitTorrent** configure os limites de upload/download conforme a sua banda e ative **Do not start the download automatically** se quiser pausar torrents importadas automaticamente.
 7. Salve as alterações. Qualquer `.torrent` copiado para `media/torrents/watch` entra em download, os arquivos completos aparecem em `media/torrents/completed` e o container `ffmpeg-watch` assume o restante do fluxo.
 
-> Não habilite scripts externos de pós-download no qBittorrent: o container `ffmpeg-watch` já move os arquivos para `media/originals` assim que o download termina.
+> Não habilite scripts externos de pós-download no qBittorrent: o container `ffmpeg-watch` já organiza tudo dentro de `media/final_media` assim que o download termina.
 
 ## Configuração do Jellyfin (passo a passo)
 
 1. Acesse `https://jellyfin.<seu-dominio>` e conclua o assistente inicial criando o usuário administrador e definindo o idioma base.
-2. Quando o wizard solicitar bibliotecas, crie pelo menos:
-	- **Originais**: tipo *Filmes* (ou *Séries*, conforme seu acervo) apontando para `/media/originals`.
-	- **Transcoded 1080p**: tipo *Filmes* apontando para `/media/transcoded/1080p`.
-	- **Transcoded 720p**: tipo *Filmes* apontando para `/media/transcoded/720p`.
-	Repita o processo para cada tipo de mídia (Filmes/Séries/Shows) que existir em ambas as resoluções.
+2. Quando o wizard solicitar bibliotecas, crie uma biblioteca por tipo de mídia apontando para `/media/final_media`. Cada título conterá subpastas replicando a estrutura original (ex.: `Série/Temporada 1/Episódio 1/arquivo/`) com o arquivo fonte e as versões `*_1080p.mp4` e `*_720p.mp4` lado a lado.
 3. Após a configuração inicial vá em **Dashboard ▸ Libraries** para revisar as bibliotecas, habilitar **Real-time monitoring** e configurar varreduras agendadas (recomenda-se a cada 15 minutos ou logo após grandes transcodificações).
 4. Em **Dashboard ▸ Playback** ajuste a política de transcodificação (codec preferido, limite de taxa) conforme o perfil de hardware disponível. Caso pretenda usar aceleração por GPU, adicione o dispositivo ao serviço Jellyfin no `docker-compose` antes de ativar a opção.
 5. Em **Dashboard ▸ Users & Access** defina perfis adicionais (usuários familiares, convidados), limites de bitrate e coleções compartilhadas.

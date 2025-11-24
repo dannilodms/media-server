@@ -124,8 +124,7 @@ services:
       - ../scripts:/scripts:ro
     environment:
       - WATCH_DIR=/media/torrents/completed
-      - ORIGINALS_DIR=/media/originals
-      - TRANSCODE_DIR=/media/transcoded
+      - FINAL_MEDIA_ROOT=/media/final_media
     networks:
       - media_net
     deploy:

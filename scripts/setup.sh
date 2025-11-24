@@ -16,9 +16,7 @@ PGID=${PGID:-1000}
 REQUIRED_DIRS=(
   "$MEDIA_DIR/torrents/watch"
   "$MEDIA_DIR/torrents/completed"
-  "$MEDIA_DIR/originals"
-  "$MEDIA_DIR/transcoded/1080p"
-  "$MEDIA_DIR/transcoded/720p"
+  "$MEDIA_DIR/final_media"
   "$CONFIG_DIR/jellyfin"
   "$CONFIG_DIR/qbittorrent"
   "$CONFIG_DIR/filebrowser"
