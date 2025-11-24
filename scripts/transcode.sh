@@ -23,6 +23,9 @@ OUTPUT_1080_DIR="$TRANSCODE_DIR/1080p"
 OUTPUT_720_DIR="$TRANSCODE_DIR/720p"
 mkdir -p "$OUTPUT_1080_DIR" "$OUTPUT_720_DIR"
 
+FINAL_DIR=${FINAL_DIR:-/media/Final}
+mkdir -p "$FINAL_DIR"
+
 BASENAME="$(basename "${INPUT_FILE%.*}")"
 OUTPUT_1080="$OUTPUT_1080_DIR/${BASENAME}_1080p.mp4"
 OUTPUT_720="$OUTPUT_720_DIR/${BASENAME}_720p.mp4"
@@ -48,4 +51,24 @@ transcode_variant() {
 transcode_variant "$OUTPUT_1080" "min(1920\,iw):-2" 20
 transcode_variant "$OUTPUT_720" "min(1280\,iw):-2" 22
 
-log "Arquivos gerados em $TRANSCODE_DIR"
+DEST_DIR="$FINAL_DIR/$BASENAME"
+mkdir -p "$DEST_DIR"
+
+move_into_final() {
+  local source_file="$1"
+  local destination_file="$DEST_DIR/$(basename "$source_file")"
+
+  if [ ! -f "$source_file" ]; then
+    log "Aviso: arquivo para mover não encontrado: $source_file"
+    return
+  fi
+
+  log "Movendo $(basename "$source_file") para $DEST_DIR"
+  mv -f "$source_file" "$destination_file"
+}
+
+move_into_final "$INPUT_FILE"
+move_into_final "$OUTPUT_1080"
+move_into_final "$OUTPUT_720"
+
+log "Arquivos organizados em $DEST_DIR"
