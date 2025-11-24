@@ -118,6 +118,7 @@ services:
     restart: unless-stopped
     depends_on:
       - qbittorrent
+    entrypoint: ["/bin/bash", "/scripts/watch.sh"]
     volumes:
       - ../media:/media
       - ../scripts:/scripts:ro
@@ -125,7 +126,6 @@ services:
       - WATCH_DIR=/media/torrents/completed
       - ORIGINALS_DIR=/media/originals
       - TRANSCODE_DIR=/media/transcoded
-    command: ["/bin/bash", "-c", "/scripts/watch.sh"]
     networks:
       - media_net
     deploy:
