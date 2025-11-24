@@ -19,7 +19,6 @@ cache/
 # Variáveis e overrides locais
 env/
 .env
-.env.*
 
 # Docker artefacts
 **/docker-data/
