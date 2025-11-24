@@ -26,13 +26,19 @@ for dir in "${REQUIRED_DIRS[@]}"; do
 
 done
 
-log "Aplicando permissões 775 em media/"
-chmod -R 775 "$MEDIA_DIR"
+log "Aplicando permissões 775 em media/ e config/"
+for path in "$MEDIA_DIR" "$CONFIG_DIR"; do
+  [ -d "$path" ] || continue
+  chmod -R 775 "$path"
+done
 
 if command -v chown >/dev/null 2>&1; then
   PUID=${PUID:-$(id -u)}
   PGID=${PGID:-$(id -g)}
-  chown -R "$PUID":"$PGID" "$MEDIA_DIR"
+  for path in "$MEDIA_DIR" "$CONFIG_DIR"; do
+    [ -d "$path" ] || continue
+    chown -R "$PUID":"$PGID" "$path"
+  done
 fi
 
 compose_cmd=""

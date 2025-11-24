@@ -30,6 +30,13 @@ chmod +x scripts/*.sh
 
 O script `setup.sh` cria a estrutura completa, aplica permissões básicas (775) e executa `docker compose up -d` usando `infra/docker-compose.yaml`.
 
+### Serviços e portas expostas
+
+- Jellyfin: `http://<host>:8096` (HTTP) e `https://<host>:8920` (HTTPS)
+- qBittorrent Web UI: `http://<host>:8080`
+- Filebrowser: `http://<host>:8081`
+- FFmpeg-watch não expõe portas; acompanhe via `docker compose logs -f ffmpeg-watch`
+
 ## Fluxo automatizado
 
 1. Copie arquivos `.torrent` para `media/torrents/watch`. O qBittorrent detecta automaticamente e inicia o download em `media/torrents/completed`.
@@ -55,6 +62,16 @@ Sempre que o container `qbittorrent` inicia pela primeira vez (ou gera uma nova 
 ```
 
 O script captura os logs do serviço e exibe as últimas linhas que contêm `username`/`password`. Caso nada seja retornado, reinicie o container (`docker compose -f infra/docker-compose.yaml restart qbittorrent`) para forçar a regeneração da senha temporária.
+
+## Resetando o ambiente
+
+Para derrubar todos os containers, remover volumes e apagar as pastas `media/` e `config/`, execute:
+
+```bash
+./scripts/reset.sh      # adiciona -y para pular a confirmação
+```
+
+Depois, rode `./scripts/setup.sh` para recomeçar do zero.
 
 ## Boas práticas
 

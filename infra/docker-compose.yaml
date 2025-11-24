@@ -38,8 +38,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "2"
-          memory: 2G
+          cpus: "1"
+          memory: 1G
 
   filebrowser:
     image: filebrowser/filebrowser:latest
@@ -58,7 +58,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "1"
+          cpus: "0.5"
           memory: 512M
 
   ffmpeg-watch:
