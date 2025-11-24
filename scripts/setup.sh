@@ -14,9 +14,9 @@ PUID=${PUID:-1000}
 PGID=${PGID:-1000}
 
 REQUIRED_DIRS=(
-  "$MEDIA_DIR/torrents/watch"
-  "$MEDIA_DIR/torrents/completed"
-  "$MEDIA_DIR/final_media"
+  "$MEDIA_DIR/watch_torrents"
+  "$MEDIA_DIR/incomplete_download"
+  "$MEDIA_DIR/complete_download"
   "$CONFIG_DIR/jellyfin"
   "$CONFIG_DIR/qbittorrent"
   "$CONFIG_DIR/filebrowser"

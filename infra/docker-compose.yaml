@@ -68,8 +68,9 @@ services:
       - "6881:6881/udp"
     volumes:
       - ../config/qbittorrent:/config
-      - ../media/torrents:/downloads
-      - ../media/torrents/watch:/watch
+      - ../media/complete_download:/downloads
+      - ../media/incomplete_download:/incomplete
+      - ../media/watch_torrents:/watch
     networks:
       - media_net
     labels:
@@ -112,26 +113,6 @@ services:
           cpus: "0.5"
           memory: 512M
 
-  ffmpeg-watch:
-    image: jrottenberg/ffmpeg:latest
-    container_name: ffmpeg-watch
-    restart: unless-stopped
-    depends_on:
-      - qbittorrent
-    entrypoint: ["/bin/bash", "/scripts/watch.sh"]
-    volumes:
-      - ../media:/media
-      - ../scripts:/scripts:ro
-    environment:
-      - WATCH_DIR=/media/torrents/completed
-      - FINAL_MEDIA_ROOT=/media/final_media
-    networks:
-      - media_net
-    deploy:
-      resources:
-        limits:
-          cpus: "4"
-          memory: 4G
 
 networks:
   media_net:

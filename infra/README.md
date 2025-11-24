@@ -10,7 +10,6 @@ Este diretório contém a definição completa dos containers necessários para 
 | `jellyfin`     | Frontend e backend de streaming. Lê toda a biblioteca presente em `/media`.| via Traefik (HTTPS)        |
 | `qbittorrent`  | Cliente BitTorrent (imagem `linuxserver/qbittorrent:5.1.4`) com pasta watch habilitada.| 6881 (TCP/UDP) + via Traefik |
 | `filebrowser`  | Interface web para navegar e gerenciar arquivos dentro de `/media`.        | via Traefik (HTTPS)        |
-| `ffmpeg-watch` | Container dedicado a monitorar downloads concluídos e disparar `ffmpeg`.   | —                          |
 
 Os painéis HTTP dos serviços ficam disponíveis somente pelos subdomínios configurados no Traefik:
 
@@ -28,14 +27,9 @@ Todos os serviços compartilham o volume raiz `../media`, garantindo que downloa
 
 ```
 media/
-├── torrents/
-│   ├── watch/
-│   └── completed/
-└── final_media/
-	└── Série/Temporada/Episódio/arquivo/
-		├── arquivo.mkv
-		├── arquivo_1080p.mp4
-		└── arquivo_720p.mp4
+├── watch_torrents/
+├── incomplete_download/
+└── complete_download/
 ```
 
 Essa árvore é criada automaticamente no host pelo script `scripts/setup.sh`, evitando que diretórios vazios sejam versionados.
@@ -66,4 +60,4 @@ Também é necessário apontar os registros DNS `A`/`AAAA` dos subdomínios para
 
 ## Configuração dos serviços
 
-O passo a passo completo para configurar o qBittorrent (watch folder, caminhos de download e porta 6881) e o Jellyfin (bibliotecas apontando para `final_media`) está descrito no README principal na raiz do repositório. Siga aquelas instruções logo após subir os containers para garantir que o pipeline funcione do download à publicação.
+O passo a passo completo para configurar o qBittorrent (watch folder, caminhos de download e porta 6881) e o Jellyfin (bibliotecas apontando para `complete_download`) está descrito no README principal na raiz do repositório.
