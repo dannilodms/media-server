@@ -51,7 +51,7 @@ O script `setup.sh` cria a estrutura completa, aplica permissões básicas (775)
 ## Fluxo automatizado
 
 1. Copie arquivos `.torrent` para `media/torrents/watch`. O qBittorrent detecta automaticamente e inicia o download em `media/torrents/completed`.
-2. O container `ffmpeg-watch` monitora `completed/` com `inotifywait`, move o arquivo finalizado para `media/originals` e chama `scripts/transcode.sh`.
+2. O container `ffmpeg-watch` monitora `completed/` com `inotifywait`, move qualquer arquivo ou pasta finalizada para `media/originals` e chama `scripts/transcode.sh` em cada vídeo encontrado.
 3. `transcode.sh` gera duas versões (`1080p` e `720p`, H.264 + AAC) dentro de `media/transcoded/` garantindo idempotência (não sobrescreve saídas existentes).
 4. Jellyfin lê continuamente `media/` e disponibiliza as novas versões aos clientes.
 

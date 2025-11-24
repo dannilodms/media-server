@@ -28,20 +28,37 @@ if [ ! -f "$TRANSCODE_SCRIPT" ]; then
 fi
 
 log "Monitorando novos arquivos em $WATCH_DIR"
-inotifywait -m -e close_write -e moved_to --format '%w%f' "$WATCH_DIR" | while read -r completed_file; do
-  [ -f "$completed_file" ] || continue
+inotifywait -m -e close_write -e moved_to --format '%w%f' "$WATCH_DIR" | while read -r completed_path; do
+  if [ -f "$completed_path" ]; then
+    filename="$(basename "$completed_path")"
+    destination="$ORIGINALS_DIR/$filename"
 
-  filename="$(basename "$completed_file")"
-  destination="$ORIGINALS_DIR/$filename"
+    log "Movendo $filename para originais"
+    mv -f "$completed_path" "$destination"
 
-  log "Movendo $filename para originais"
-  mv -f "$completed_file" "$destination"
+    log "Iniciando transcodificação de $filename"
+    if /bin/bash "$TRANSCODE_SCRIPT" "$destination"; then
+      log "Transcodificação concluída para $filename"
+    else
+      log "Falha ao transcodificar $filename"
+    fi
+  elif [ -d "$completed_path" ]; then
+    folder_name="$(basename "$completed_path")"
+    destination_dir="$ORIGINALS_DIR/$folder_name"
 
-  log "Iniciando transcodificação de $filename"
-  if /bin/bash "$TRANSCODE_SCRIPT" "$destination"; then
-    log "Transcodificação concluída para $filename"
+    log "Movendo pasta $folder_name para originais"
+    mv -f "$completed_path" "$destination_dir"
+
+    find "$destination_dir" -type f -print0 | while IFS= read -r -d '' nested_file; do
+      nested_name="$(basename "$nested_file")"
+      log "Iniciando transcodificação de $nested_name"
+      if /bin/bash "$TRANSCODE_SCRIPT" "$nested_file"; then
+        log "Transcodificação concluída para $nested_name"
+      else
+        log "Falha ao transcodificar $nested_name"
+      fi
+    done
   else
-    log "Falha ao transcodificar $filename"
+    log "Entrada ignorada: $completed_path"
   fi
-
 done
