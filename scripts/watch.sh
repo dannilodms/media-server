@@ -22,7 +22,7 @@ TRANSCODE_SCRIPT="${TRANSCODE_SCRIPT:-${SCRIPT_ROOT}/transcode.sh}"
 require_binary inotifywait
 mkdir -p "$WATCH_DIR" "$ORIGINALS_DIR" "$TRANSCODE_DIR/1080p" "$TRANSCODE_DIR/720p"
 
-if [ ! -x "$TRANSCODE_SCRIPT" ]; then
+if [ ! -f "$TRANSCODE_SCRIPT" ]; then
   log "Script de transcodificação não encontrado em $TRANSCODE_SCRIPT"
   exit 1
 fi
@@ -38,7 +38,7 @@ inotifywait -m -e close_write -e moved_to --format '%w%f' "$WATCH_DIR" | while r
   mv -f "$completed_file" "$destination"
 
   log "Iniciando transcodificação de $filename"
-  if "$TRANSCODE_SCRIPT" "$destination"; then
+  if /bin/bash "$TRANSCODE_SCRIPT" "$destination"; then
     log "Transcodificação concluída para $filename"
   else
     log "Falha ao transcodificar $filename"
