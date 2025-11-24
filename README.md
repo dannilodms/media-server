@@ -19,6 +19,16 @@ media/                  # Raiz com torrents/originais/transcodificados (criado p
 
 As pastas `config/` e `media/` não ficam versionadas: o script `setup.sh` cria toda a hierarquia diretamente no servidor antes de subir os containers.
 
+## Configuração de domínio e HTTPS
+
+1. Crie os registros DNS `A/AAAA` para os subdomínios que irão atender Jellyfin, qBittorrent e Filebrowser.
+2. Copie `infra/.env.example` para `infra/.env` e configure:
+
+	- `LETSENCRYPT_EMAIL`: e-mail para emissão automática pelo Let's Encrypt
+	- `JELLYFIN_HOST`, `QBITTORRENT_HOST`, `FILEBROWSER_HOST`: FQDNs que apontam para o servidor
+
+3. Execute `./scripts/setup.sh` normalmente. O Traefik faz o desafio HTTP-01 e provisiona/renova os certificados em `config/traefik/acme.json` automaticamente.
+
 ## Como subir tudo
 
 ```bash
@@ -32,9 +42,10 @@ O script `setup.sh` cria a estrutura completa, aplica permissões básicas (775)
 
 ### Serviços e portas expostas
 
-- Jellyfin: `http://<host>:8096` (HTTP) e `https://<host>:8920` (HTTPS)
-- qBittorrent Web UI: `http://<host>:8080`
-- Filebrowser: `http://<host>:8081`
+- Traefik: 80/443 públicos, finaliza TLS e encaminha para os subdomínios configurados
+- Jellyfin: disponível exclusivamente via `https://jellyfin.<seu-dominio>` (ou o host definido no `.env`)
+- qBittorrent Web UI: `https://torrent.<seu-dominio>` (BitTorrent usa diretamente 6881 TCP/UDP)
+- Filebrowser: `https://files.<seu-dominio>`
 - FFmpeg-watch não expõe portas; acompanhe via `docker compose logs -f ffmpeg-watch`
 
 ## Fluxo automatizado
@@ -46,12 +57,44 @@ O script `setup.sh` cria a estrutura completa, aplica permissões básicas (775)
 
 ## Serviços principais
 
-- **Jellyfin**: sem limites de recursos, expõe 8096/8920 e monta `media/` inteiro.
-- **qBittorrent (linuxserver/qbittorrent:5.1.4)**: utiliza PUID/PGID 1000 por padrão, pasta watch dedicada e limites de 1 CPUs / 1 GB.
-- **Filebrowser**: interface web rápida com acesso somente leitura ao usuário padrão (ajuste em `config/filebrowser`). Limites de 0.5 CPU / 512 MB.
+- **Traefik**: único serviço exposto na borda. Publica `80/443`, executa HTTP-01, renova certificados e encaminha as rotas.
+- **Jellyfin**: sem limites de recursos e montando `media/` inteiro, agora atrás do Traefik.
+- **qBittorrent (linuxserver/qbittorrent:5.1.4)**: utiliza PUID/PGID 1000 por padrão, pasta watch dedicada e limites de 1 CPUs / 1 GB. A WebUI passa pelo proxy enquanto as portas 6881 TCP/UDP continuam abertas para o protocolo BitTorrent.
+- **Filebrowser**: interface web rápida com acesso somente leitura ao usuário padrão (ajuste em `config/filebrowser`). Limites de 0.5 CPU / 512 MB e publicação exclusiva via Traefik.
 - **ffmpeg-watch**: baseado em `jrottenberg/ffmpeg:latest`, executa `scripts/watch.sh` para orquestrar movimento e transcodificação.
 
 Mais detalhes estão em `infra/README.md`.
+
+## Configuração do qBittorrent (passo a passo)
+
+1. Acesse `https://torrent.<seu-dominio>` (ou o host definido em `infra/.env`). Caso não lembre a senha inicial, execute `./scripts/qbittorrent-password.sh` para extraí-la dos logs.
+2. No primeiro login, troque imediatamente usuário e senha em **Tools ▸ Options ▸ Web UI** para evitar que o Traefik exponha credenciais padrão.
+3. Ainda em **Web UI**, mantenha a porta em `8080` (é a que o Traefik encaminha) e marque **Use HTTPS** desativado, já que o TLS é finalizado no proxy.
+4. Abra **Tools ▸ Options ▸ Downloads** e configure:
+	- **Default Save Path**: `/downloads/completed` (mapeia para `media/torrents/completed`).
+	- **Keep incomplete torrents in**: `/downloads/incomplete` (opcional, será criado dentro de `media/torrents`).
+	- **Monitored Folder**: `/watch`, habilitando **Automatically add torrents from** para que qualquer arquivo colocado em `media/torrents/watch` seja iniciado automaticamente.
+	- **Copy .torrent files to**: `/watch` para manter um backup das torrents aceitas.
+5. Em **Tools ▸ Options ▸ Connection** desmarque **Use different port on each startup** e mantenha a porta TCP/UDP fixa em `6881`, que já está liberada no `docker-compose`. Ajuste UPnP/port forwarding conforme a rede do servidor.
+6. Na aba **BitTorrent** configure os limites de upload/download conforme a sua banda e ative **Do not start the download automatically** se quiser pausar torrents importadas automaticamente.
+7. Salve as alterações. Qualquer `.torrent` copiado para `media/torrents/watch` entra em download, os arquivos completos aparecem em `media/torrents/completed` e o container `ffmpeg-watch` assume o restante do fluxo.
+
+> Não habilite scripts externos de pós-download no qBittorrent: o container `ffmpeg-watch` já move os arquivos para `media/originals` assim que o download termina.
+
+## Configuração do Jellyfin (passo a passo)
+
+1. Acesse `https://jellyfin.<seu-dominio>` e conclua o assistente inicial criando o usuário administrador e definindo o idioma base.
+2. Quando o wizard solicitar bibliotecas, crie pelo menos:
+	- **Originais**: tipo *Filmes* (ou *Séries*, conforme seu acervo) apontando para `/media/originals`.
+	- **Transcoded 1080p**: tipo *Filmes* apontando para `/media/transcoded/1080p`.
+	- **Transcoded 720p**: tipo *Filmes* apontando para `/media/transcoded/720p`.
+	Repita o processo para cada tipo de mídia (Filmes/Séries/Shows) que existir em ambas as resoluções.
+3. Após a configuração inicial vá em **Dashboard ▸ Libraries** para revisar as bibliotecas, habilitar **Real-time monitoring** e configurar varreduras agendadas (recomenda-se a cada 15 minutos ou logo após grandes transcodificações).
+4. Em **Dashboard ▸ Playback** ajuste a política de transcodificação (codec preferido, limite de taxa) conforme o perfil de hardware disponível. Caso pretenda usar aceleração por GPU, adicione o dispositivo ao serviço Jellyfin no `docker-compose` antes de ativar a opção.
+5. Em **Dashboard ▸ Users & Access** defina perfis adicionais (usuários familiares, convidados), limites de bitrate e coleções compartilhadas.
+6. Sempre que novos arquivos forem transcodificados, execute um **Scan Library** manual ou aguarde o monitoramento em tempo real detectar as mudanças.
+
+Com esses passos, o qBittorrent alimenta automaticamente o pipeline de downloads e o Jellyfin exibe tanto os arquivos originais quanto as versões otimizadas em 1080p/720p.
 
 ## Senha temporária do qBittorrent
 

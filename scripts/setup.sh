@@ -18,6 +18,7 @@ REQUIRED_DIRS=(
   "$CONFIG_DIR/jellyfin"
   "$CONFIG_DIR/qbittorrent"
   "$CONFIG_DIR/filebrowser"
+  "$CONFIG_DIR/traefik"
 )
 
 log "Criando diretórios necessários"
@@ -26,11 +27,25 @@ for dir in "${REQUIRED_DIRS[@]}"; do
 
 done
 
+ACME_FILE="$CONFIG_DIR/traefik/acme.json"
+if [ ! -f "$ACME_FILE" ]; then
+  log "Criando arquivo ACME para o Traefik"
+  umask 177
+  printf '{}' > "$ACME_FILE"
+else
+  chmod 600 "$ACME_FILE"
+fi
+umask 022
+
 log "Aplicando permissões 775 em media/ e config/"
 for path in "$MEDIA_DIR" "$CONFIG_DIR"; do
   [ -d "$path" ] || continue
   chmod -R 775 "$path"
 done
+
+if [ -f "$ACME_FILE" ]; then
+  chmod 600 "$ACME_FILE"
+fi
 
 if command -v chown >/dev/null 2>&1; then
   PUID=${PUID:-$(id -u)}

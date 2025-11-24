@@ -1,18 +1,59 @@
+version: "3.9"
+
 services:
+  traefik:
+    image: traefik:v3.1
+    container_name: traefik
+    restart: unless-stopped
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --certificatesresolvers.letsencrypt.acme.httpchallenge=true
+      - --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web
+      - --certificatesresolvers.letsencrypt.acme.email=${LETSENCRYPT_EMAIL}
+      - --certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ../config/traefik/acme.json:/letsencrypt/acme.json
+    networks:
+      - media_net
+    environment:
+      - TZ=America/Sao_Paulo
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.http-catchall.rule=HostRegexp(`{host:.+}`)"
+      - "traefik.http.routers.http-catchall.entrypoints=web"
+      - "traefik.http.routers.http-catchall.middlewares=redirect-to-https"
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+
   jellyfin:
     image: jellyfin/jellyfin:latest
     container_name: jellyfin
     restart: unless-stopped
     environment:
       - TZ=America/Sao_Paulo
-    ports:
-      - "8096:8096"
-      - "8920:8920"
     volumes:
       - ../config/jellyfin:/config
       - ../media:/media
     networks:
       - media_net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.services.jellyfin.loadbalancer.server.port=8096"
+      - "traefik.http.routers.jellyfin.rule=Host(`${JELLYFIN_HOST}`)"
+      - "traefik.http.routers.jellyfin.entrypoints=websecure"
+      - "traefik.http.routers.jellyfin.tls=true"
+      - "traefik.http.routers.jellyfin.tls.certresolver=letsencrypt"
 
   qbittorrent:
     image: linuxserver/qbittorrent:5.1.4
@@ -24,7 +65,6 @@ services:
       - TZ=America/Sao_Paulo
       - WEBUI_PORT=8080
     ports:
-      - "8080:8080"
       - "6881:6881"
       - "6881:6881/udp"
     volumes:
@@ -33,6 +73,13 @@ services:
       - ../media/torrents/watch:/watch
     networks:
       - media_net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.services.qbittorrent.loadbalancer.server.port=8080"
+      - "traefik.http.routers.qbittorrent.rule=Host(`${QBITTORRENT_HOST}`)"
+      - "traefik.http.routers.qbittorrent.entrypoints=websecure"
+      - "traefik.http.routers.qbittorrent.tls=true"
+      - "traefik.http.routers.qbittorrent.tls.certresolver=letsencrypt"
     deploy:
       resources:
         limits:
@@ -48,13 +95,19 @@ services:
       - PGID=1000
       - TZ=America/Sao_Paulo
     ports:
-      - "8081:80"
     volumes:
       - ../config/filebrowser:/config
       - ../config/filebrowser/database:/database
       - ../media:/srv
     networks:
       - media_net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.services.filebrowser.loadbalancer.server.port=80"
+      - "traefik.http.routers.filebrowser.rule=Host(`${FILEBROWSER_HOST}`)"
+      - "traefik.http.routers.filebrowser.entrypoints=websecure"
+      - "traefik.http.routers.filebrowser.tls=true"
+      - "traefik.http.routers.filebrowser.tls.certresolver=letsencrypt"
     deploy:
       resources:
         limits:
