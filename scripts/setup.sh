@@ -9,6 +9,10 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MEDIA_DIR="$ROOT_DIR/media"
 CONFIG_DIR="$ROOT_DIR/config"
 
+# UID/GID usados pelos containers (default 1000)
+PUID=${PUID:-1000}
+PGID=${PGID:-1000}
+
 REQUIRED_DIRS=(
   "$MEDIA_DIR/torrents/watch"
   "$MEDIA_DIR/torrents/completed"
@@ -37,24 +41,17 @@ else
 fi
 umask 022
 
-log "Aplicando permissões 775 em media/ e config/"
+log "Aplicando proprietário ${PUID}:${PGID} e permissões (dirs 775, arquivos 664) em media/ e config/"
 for path in "$MEDIA_DIR" "$CONFIG_DIR"; do
   [ -d "$path" ] || continue
-  chmod -R 775 "$path"
+  if command -v chown >/dev/null 2>&1; then
+    chown -R "$PUID":"$PGID" "$path"
+  fi
+  find "$path" -type d -exec chmod 775 {} +
+  find "$path" -type f -exec chmod 664 {} +
 done
 
-if [ -f "$ACME_FILE" ]; then
-  chmod 600 "$ACME_FILE"
-fi
-
-if command -v chown >/dev/null 2>&1; then
-  PUID=${PUID:-$(id -u)}
-  PGID=${PGID:-$(id -g)}
-  for path in "$MEDIA_DIR" "$CONFIG_DIR"; do
-    [ -d "$path" ] || continue
-    chown -R "$PUID":"$PGID" "$path"
-  done
-fi
+[ -f "$ACME_FILE" ] && chmod 600 "$ACME_FILE"
 
 compose_cmd=""
 if docker compose version >/dev/null 2>&1; then
