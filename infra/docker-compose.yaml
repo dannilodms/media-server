@@ -94,7 +94,6 @@ services:
       - PUID=1000
       - PGID=1000
       - TZ=America/Sao_Paulo
-    ports:
     volumes:
       - ../config/filebrowser:/config
       - ../config/filebrowser/database:/database
