@@ -1,4 +1,4 @@
-# Jellyfin Contabo Stack
+# Jellyfin Stack
 
 Infraestrutura completa para automatizar downloads, transcodificação e disponibilização de mídia via Jellyfin utilizando Docker Compose.
 
@@ -23,7 +23,7 @@ As pastas `config/` e `media/` não ficam versionadas: o script `setup.sh` cria 
 
 ```bash
 git clone <este-repo>
-cd Contabo
+cd media-server
 chmod +x scripts/*.sh
 ./scripts/setup.sh
 ```
@@ -62,6 +62,22 @@ Sempre que o container `qbittorrent` inicia pela primeira vez (ou gera uma nova 
 ```
 
 O script captura os logs do serviço e exibe as últimas linhas que contêm `username`/`password`. Caso nada seja retornado, reinicie o container (`docker compose -f infra/docker-compose.yaml restart qbittorrent`) para forçar a regeneração da senha temporária.
+
+## Senha temporária do Filebrowser
+
+O Filebrowser imprime **apenas uma vez** a senha inicial do usuário `admin` nos logs ao criar o banco em `/config/filebrowser/database`. Guarde-a imediatamente ou utilize:
+
+```bash
+./scripts/filebrowser-password.sh
+```
+
+O script busca as últimas ocorrências de `username`/`password` nos logs do serviço e exibe o trecho correspondente. Se nenhuma senha for exibida, é porque o banco já foi inicializado e os logs não serão emitidos novamente. Para forçar a regeneração:
+
+1. `docker compose -f infra/docker-compose.yaml stop filebrowser`
+2. Remova o banco: `rm -rf config/filebrowser/database/*`
+3. `docker compose -f infra/docker-compose.yaml up -d filebrowser`
+
+Na próxima inicialização, a senha volta a aparecer nos logs e pode ser capturada com o script acima.
 
 ## Resetando o ambiente
 
