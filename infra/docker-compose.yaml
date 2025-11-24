@@ -1,0 +1,88 @@
+version: "3.9"
+
+services:
+  jellyfin:
+    image: jellyfin/jellyfin:latest
+    container_name: jellyfin
+    restart: unless-stopped
+    environment:
+      - TZ=America/Sao_Paulo
+    ports:
+      - "8096:8096"
+      - "8920:8920"
+    volumes:
+      - ../config/jellyfin:/config
+      - ../media:/media
+    networks:
+      - media_net
+
+  qbittorrent:
+    image: linuxserver/qbittorrent:5.1.4
+    container_name: qbittorrent
+    restart: unless-stopped
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/Sao_Paulo
+      - WEBUI_PORT=8080
+    ports:
+      - "8080:8080"
+      - "6881:6881"
+      - "6881:6881/udp"
+    volumes:
+      - ../config/qbittorrent:/config
+      - ../media/torrents:/downloads
+      - ../media/torrents/watch:/watch
+    networks:
+      - media_net
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 2G
+
+  filebrowser:
+    image: filebrowser/filebrowser:latest
+    container_name: filebrowser
+    restart: unless-stopped
+    user: "1000:1000"
+    environment:
+      - TZ=America/Sao_Paulo
+    ports:
+      - "8081:80"
+    volumes:
+      - ../config/filebrowser:/config
+      - ../media:/srv
+    networks:
+      - media_net
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 512M
+
+  ffmpeg-watch:
+    image: jrottenberg/ffmpeg:latest
+    container_name: ffmpeg-watch
+    restart: unless-stopped
+    depends_on:
+      - qbittorrent
+    volumes:
+      - ../media:/media
+      - ../scripts:/scripts:ro
+    environment:
+      - WATCH_DIR=/media/torrents/completed
+      - ORIGINALS_DIR=/media/originals
+      - TRANSCODE_DIR=/media/transcoded
+    command: ["/bin/bash", "-c", "/scripts/watch.sh"]
+    networks:
+      - media_net
+    deploy:
+      resources:
+        limits:
+          cpus: "4"
+          memory: 4G
+
+networks:
+  media_net:
+    driver: bridge

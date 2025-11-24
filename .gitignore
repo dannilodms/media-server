@@ -1,0 +1,25 @@
+# Dependências temporárias
+*.log
+*.tmp
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Arquivos grandes e mídia gerada (mantidos apenas no host)
+media/**
+
+# Volumes e configs geradas pelos containers
+config/**
+
+# Caches de aplicações
+cache/
+*.cache
+
+# Variáveis e overrides locais
+env/
+.env
+.env.*
+
+# Docker artefacts
+**/docker-data/
