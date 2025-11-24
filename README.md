@@ -47,8 +47,8 @@ O script `setup.sh` cria a estrutura completa, aplica permissões básicas (775)
 ## Serviços principais
 
 - **Jellyfin**: sem limites de recursos, expõe 8096/8920 e monta `media/` inteiro.
-- **qBittorrent (linuxserver/qbittorrent:5.1.4)**: utiliza PUID/PGID 1000 por padrão, pasta watch dedicada e limites de 2 CPUs / 2 GB.
-- **Filebrowser**: interface web rápida com acesso somente leitura ao usuário padrão (ajuste em `config/filebrowser`). Limites de 1 CPU / 512 MB.
+- **qBittorrent (linuxserver/qbittorrent:5.1.4)**: utiliza PUID/PGID 1000 por padrão, pasta watch dedicada e limites de 1 CPUs / 1 GB.
+- **Filebrowser**: interface web rápida com acesso somente leitura ao usuário padrão (ajuste em `config/filebrowser`). Limites de 0.5 CPU / 512 MB.
 - **ffmpeg-watch**: baseado em `jrottenberg/ffmpeg:latest`, executa `scripts/watch.sh` para orquestrar movimento e transcodificação.
 
 Mais detalhes estão em `infra/README.md`.
